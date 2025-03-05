@@ -8,6 +8,18 @@ from . import crud, models, schemas, auth, database
 app = FastAPI()
 
 
+from fastapi.middleware.cors import CORSMiddleware
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Можно заменить "*" на ["http://localhost:5173"]
+    allow_credentials=True,
+    allow_methods=["*"],  # Разрешает все методы (GET, POST и т.д.)
+    allow_headers=["*"],  # Разрешает все заголовки
+)
+
+
 @app.post("/register", response_model=schemas.User)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
