@@ -38,6 +38,13 @@ def protected_route(current_user: models.User = Depends(auth.get_current_user)):
     return {"message": f"Hello, {current_user.username}. You have access to this protected route!"}
 
 
+@app.get("/users/me", response_model=schemas.User)
+def get_me(current_user: schemas.User = Depends(auth.get_current_user)):
+    """Endpoint to get details of the currently authenticated user."""
+
+    return current_user
+
+
 @app.put("/update_profile", response_model=schemas.User)
 def update_profile(user_update: schemas.User, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     db_user = crud.get_user_by_email(db, email=current_user.email)
@@ -52,3 +59,18 @@ def update_profile(user_update: schemas.User, db: Session = Depends(database.get
     db.refresh(db_user)
 
     return db_user
+
+
+@app.put("/change_password")
+def change_password(old_password: str, new_password: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    db_user = crud.get_user_by_email(db, email=current_user.email)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Verify old password
+    if not auth.verify_password(old_password, db_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect old password")
+
+    db_user.hashed_password = auth.hash_password(new_password)
+    db.commit()
+    return {"message": "Password updated successfully"}
