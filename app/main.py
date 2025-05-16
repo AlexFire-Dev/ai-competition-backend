@@ -1,9 +1,12 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from uuid import uuid4
 import uvicorn
 
 from . import crud, models, schemas, auth, database
+import app.websocket as ws_handler
+from .database import get_db
 
 app = FastAPI()
 
@@ -88,3 +91,60 @@ def change_password(old_password: str, new_password: str, db: Session = Depends(
     db_user.hashed_password = auth.hash_password(new_password)
     db.commit()
     return {"message": "Password updated successfully"}
+
+
+@app.post("/create_lobby", response_model=schemas.LobbyOut)
+def create_lobby(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    game_id = str(uuid4())
+    lobby = crud.create_lobby(db, game_id, current_user.id)
+    crud.join_lobby(db, current_user.id, lobby.id)
+    db.refresh(lobby)
+    return schemas.LobbyOut(
+        id=lobby.id,
+        game_id=lobby.game_id,
+        host_id=lobby.host_id,
+        status=lobby.status,
+        players=[p.user_id for p in lobby.players]
+    )
+
+
+@app.post("/join_lobby/{game_id}", response_model=schemas.LobbyOut)
+def join_lobby(game_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    lobby = crud.get_lobby(db, game_id)
+    if not lobby:
+        raise HTTPException(status_code=404, detail="Lobby not found")
+    crud.join_lobby(db, current_user.id, lobby.id)
+    db.refresh(lobby)
+    return schemas.LobbyOut(
+        id=lobby.id,
+        game_id=lobby.game_id,
+        host_id=lobby.host_id,
+        status=lobby.status,
+        players=[p.user_id for p in lobby.players]
+    )
+
+
+@app.websocket("/ws/{lobby_id}")
+async def websocket_endpoint(websocket: WebSocket, lobby_id: str, db: Session = Depends(get_db)):
+    token = websocket.query_params.get("token")
+
+    if not token:
+        await websocket.close(code=1008)
+        return
+
+    # try:
+    #     user = auth.get_current_user(token, db)
+    # except Exception:
+    #     await websocket.close(code=1008)
+    #     return
+
+    try:
+        user = auth.get_current_user(token, db)
+    except Exception as e:
+        print("Token decode failed:", e)
+        await websocket.close(code=1008)
+        return
+
+    # только теперь можно принять соединение
+    await ws_handler.handle_ws(websocket, user.id, lobby_id)
+

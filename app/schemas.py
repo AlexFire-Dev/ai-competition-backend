@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List, Optional
 
 
 class UserBase(BaseModel):
@@ -19,3 +20,20 @@ class User(UserBase):
 
     class Config:
         from_attributes = True
+
+
+class LobbyCreate(BaseModel):
+    game_id: str
+    host_id: int
+
+
+class LobbyOut(BaseModel):
+    id: int
+    game_id: str
+    host_id: int
+    status: str
+    players: List[int]  # stays the same
+
+    class Config:
+        from_attributes = True  # <- replaces orm_mode in Pydantic v2
+

@@ -18,7 +18,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from app import models  # Импортируем модели, которые мы будем мигрировать
+import app.models as models  # Импортируем модели, которые мы будем мигрировать
 from app.database import engine  # Подключение к движку базы данных
 target_metadata = models.Base.metadata
 
