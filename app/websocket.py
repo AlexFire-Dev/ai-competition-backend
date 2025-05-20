@@ -128,10 +128,23 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str):
             winner_internal = game.get_winner()
             if winner_internal != -1:
                 result = "draw" if winner_internal is None else "win"
-                winner_uid = None if result == "draw" else reverse_player_maps[lobby_id][winner_internal]
-                print(f"[GAME OVER] Lobby {lobby_id} result={result}, winner={winner_uid}")
 
-                store_match_result(db, lobby_id, winner_uid, result, game.tick_count)
+                winner_internal = game.get_winner()
+                winner_user_id = reverse_player_maps[lobby_id][winner_internal]
+                loser_user_id = next(
+                    uid for internal, uid in reverse_player_maps[lobby_id].items()
+                    if internal != winner_internal
+                )
+
+                print(f"[GAME OVER] Lobby {lobby_id} result={result}, winner={winner_user_id}")
+                store_match_result(
+                    db,
+                    lobby_id=int(lobby_id),
+                    winner_id=winner_user_id,
+                    loser_id=loser_user_id,
+                    result=result,  # "win" | "draw"
+                    ticks=game.tick_count
+                )
 
                 # Remove state from Redis
                 await redis_client.delete(f"game:{lobby_id}:state")
@@ -141,7 +154,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str):
                 for uid in list(lobby_connections[lobby_id]):
                     ws = connections.pop(uid, None)
                     if ws:
-                        await ws.send_json({"event": "game_over", "winner": winner_uid})
+                        await ws.send_json({"event": "game_over", "winner": winner_user_id})
                         await ws.close()
                         print(f"[CLOSED] User {uid} disconnected after game over")
 

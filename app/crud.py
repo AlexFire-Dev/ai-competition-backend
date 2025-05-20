@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from . import models, schemas, auth
 from passlib.context import CryptContext
+from math import pow
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -61,12 +63,70 @@ def get_lobby(db, game_id):
     return db.query(models.Lobby).filter_by(game_id=game_id).first()
 
 
-def store_match_result(db, lobby_id, winner_id, result, ticks):
+def update_elo(db: Session, winner_id: int, loser_id: int, is_draw: bool = False):
+    winner = db.query(models.User).filter(models.User.id == winner_id).one()
+    loser  = db.query(models.User).filter(models.User.id == loser_id).one()
+
+    R_w, R_l = winner.rating, loser.rating
+
+    E_w = 1 / (1 + pow(10, (R_l - R_w) / 400))
+    E_l = 1 / (1 + pow(10, (R_w - R_l) / 400))
+
+    if is_draw:
+        S_w = S_l = 0.5
+    else:
+        S_w, S_l = 1.0, 0.0
+
+    def choose_K(games):
+        if games < 30: return 40
+        if games < 300: return 20
+        return 10
+
+    K_w = choose_K(winner.games_played)
+    K_l = choose_K(loser.games_played)
+
+    winner.rating = round(R_w + K_w * (S_w - E_w))
+    loser.rating  = round(R_l + K_l * (S_l - E_l))
+
+    winner.games_played += 1
+    loser.games_played  += 1
+
+    db.commit()
+    return winner.rating, loser.rating
+
+#
+# def store_match_result(db, lobby_id, winner_id, result, ticks):
+#     match = models.MatchResult(
+#         lobby_id=lobby_id,
+#         winner_id=winner_id,
+#         result=result,
+#         ticks=ticks
+#     )
+#     db.add(match)
+#     db.commit()
+
+
+def store_match_result(
+    db: Session,
+    lobby_id: int,
+    winner_id: int | None,
+    loser_id:  int | None,
+    result:    str,
+    ticks:     int
+):
+    """
+    Сохраняет результат матча в БД, включая победителя и проигравшего.
+    """
     match = models.MatchResult(
-        lobby_id=lobby_id,
-        winner_id=winner_id,
-        result=result,
-        ticks=ticks
+        lobby_id  = lobby_id,
+        winner_id = winner_id,
+        loser_id  = loser_id,
+        result    = result,
+        ticks     = ticks
     )
     db.add(match)
     db.commit()
+
+    update_elo(db, winner_id, loser_id, True if (result == "draw") else False)
+
+    return match

@@ -32,11 +32,14 @@ class MatchResult(Base):
     id = Column(Integer, primary_key=True)
     lobby_id = Column(Integer, ForeignKey("lobbies.id"))
     winner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    loser_id  = Column(Integer, ForeignKey("users.id"), nullable=True)
     result = Column(String)  # win, draw
     ticks = Column(Integer)
 
     lobby = relationship("Lobby")
-    winner = relationship("User")
+    winner = relationship("User",  foreign_keys=[winner_id])
+    loser = relationship("User", foreign_keys=[loser_id])
+
 
 class User(Base):
     __tablename__ = "users"
@@ -47,3 +50,7 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     theme = Column(String, default="light")  # Тема интерфейса (light/dark)
     avatar = Column(String, nullable=True)  # URL аватара
+
+    # rating params
+    rating = Column(Integer, default=1500, nullable=False)
+    games_played = Column(Integer, default=0, nullable=False)
