@@ -16,6 +16,14 @@ services:
       - my_network
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
   web:
     build: .
     command: ["./start.sh"]
@@ -25,10 +33,12 @@ services:
       - my_network
     depends_on:
       - db
+      - redis
     restart: unless-stopped
 
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   my_network:
