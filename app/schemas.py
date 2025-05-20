@@ -1,25 +1,55 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 
 
+# class UserBase(BaseModel):
+#     email: str
+#     username: str
+#
+#
+# class UserCreate(UserBase):
+#     password: str
+#     theme: str = "light"
+#     avatar: str = None
+#
+#
+# class User(UserBase):
+#     id: int
+#     theme: str
+#     avatar: str
+#
+#     class Config:
+#         from_attributes = True
+
+
 class UserBase(BaseModel):
-    email: str
+    email: EmailStr
     username: str
+    theme: Optional[str] = None
+    avatar: Optional[str] = None
 
 
 class UserCreate(UserBase):
     password: str
-    theme: str = "light"
-    avatar: str = None
 
 
-class User(UserBase):
-    id: int
-    theme: str
-    avatar: str
+class UserUpdate(BaseModel):
+    email:    Optional[EmailStr] = None
+    username: Optional[str]      = None
+    theme:    Optional[str]      = None
+    avatar:   Optional[str]      = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
+
+class UserOut(UserBase):
+    id: int
+    rating:       int
+    games_played: int
+
+    class Config:
+        orm_mode = True
 
 
 class LobbyCreate(BaseModel):

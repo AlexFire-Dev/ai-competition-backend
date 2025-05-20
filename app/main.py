@@ -2,7 +2,6 @@ from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocke
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from uuid import uuid4
-import uvicorn
 
 from . import crud, models, schemas, auth, database
 import app.websocket as ws_handler
@@ -23,7 +22,7 @@ app.add_middleware(
 )
 
 
-@app.post("/register", response_model=schemas.User)
+@app.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
@@ -55,23 +54,22 @@ def protected_route(current_user: models.User = Depends(auth.get_current_user)):
     return {"message": f"Hello, {current_user.username}. You have access to this protected route!"}
 
 
-@app.get("/users/me", response_model=schemas.User)
-def get_me(current_user: schemas.User = Depends(auth.get_current_user)):
+@app.get("/users/me", response_model=schemas.UserOut)
+def get_me(current_user: models.User = Depends(auth.get_current_user)):
     """Endpoint to get details of the currently authenticated user."""
 
     return current_user
 
 
-@app.put("/update_profile", response_model=schemas.User)
-def update_profile(user_update: schemas.User, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+@app.put("/update_profile", response_model=schemas.UserOut)
+def update_profile(data: schemas.UserUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     db_user = crud.get_user_by_email(db, email=current_user.email)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
     # Only allow updating username, theme, and avatar
-    db_user.username = user_update.username
-    db_user.theme = user_update.theme
-    db_user.avatar = user_update.avatar
+    for field, val in data.dict(exclude_unset=True).items():
+        setattr(current_user, field, val)
     db.commit()
     db.refresh(db_user)
 
@@ -145,6 +143,4 @@ async def websocket_endpoint(websocket: WebSocket, lobby_id: str, db: Session = 
         await websocket.close(code=1008)
         return
 
-    # только теперь можно принять соединение
     await ws_handler.handle_ws(websocket, user.id, lobby_id)
-
