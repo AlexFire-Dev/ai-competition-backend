@@ -177,12 +177,13 @@ class Game:
             ]
         }
 
-    def print_board(self):
+    def print_board(self, id_map: dict[int, int] | None = None):
         board = [[self._tile_char(x, y) for x in range(self.width)] for y in range(self.height)]
 
         for pid, player in self.players.items():
             if player.alive:
-                board[player.y][player.x] = str(pid)
+                label = str(id_map.get(pid, pid)) if id_map else str(pid)
+                board[player.y][player.x] = label
 
         print(f"\nTick: {self.tick_count}")
         for row in board:

@@ -142,7 +142,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str):
 
             # 10) Log the board for debugging
             print("[BOARD]")
-            game.print_board()
+            game.print_board(id_map=reverse_player_maps[lobby_id])
 
             # 11) Export, broadcast, and save state
             st = game.export_state()
