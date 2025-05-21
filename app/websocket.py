@@ -1,3 +1,4 @@
+import os
 import json
 import asyncio
 from collections import defaultdict
@@ -12,7 +13,12 @@ from app import models
 from app.crud import store_match_result
 
 # Redis client (adjust host/port via environment or here)
-redis_client = Redis(host="10.27.50.20", port=6379, db=0, decode_responses=True)
+redis_client = Redis(
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", 6379)),
+    db=0,
+    decode_responses=True
+)
 
 # In-memory mappings
 connections = {}                           # user_id -> WebSocket
