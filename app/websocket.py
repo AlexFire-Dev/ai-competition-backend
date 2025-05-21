@@ -12,7 +12,7 @@ from app import models
 from app.crud import store_match_result
 
 # Redis client (adjust host/port via environment or here)
-redis_client = Redis(host="localhost", port=6379, db=0, decode_responses=True)
+redis_client = Redis(host="redis", port=6379, db=0, decode_responses=True)
 
 # In-memory mappings
 connections = {}                           # user_id -> WebSocket
