@@ -71,20 +71,44 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str):
             ws = connections.get(uid)
             if ws:
                 await ws.send_json({"event": "start_game"})
+                await ws.send_json({
+                    "event": "start_game",
+                    "user_id": uid
+                })
         print(f"[GAME] Lobby {lobby_id} → start_game sent to {len(uids)} clients")
 
         # 5b) Broadcast the initial game state
-        init_state = game.export_state()
-        print(f"[INIT STATE] broadcasting initial game state: tick {init_state['tick']}")
+        init = game.export_state()
+        players_int = init.pop("players")
+        remapped = {}
+        for internal, info in players_int.items():
+            uid = reverse_player_maps[lobby_id][int(internal)]
+            remapped[str(uid)] = info
+        init["players"] = remapped
+
         for uid in uids:
             ws = connections.get(uid)
             if ws:
-                await ws.send_json({"event": "init_state", **init_state})
-        print("[INIT STATE] done")
+                await ws.send_json({"event": "init_state", **init})
+        print(f"[INIT STATE] {init['tick']}")
 
         # 5c) Store initial state in Redis
-        await redis_client.set(f"game:{lobby_id}:state", json.dumps(init_state))
+        await redis_client.set(f"game:{lobby_id}:state", json.dumps(init))
         print(f"[REDIS] Initial state stored for lobby {lobby_id}")
+    else:
+        # 5x) Reconnection handling
+        if user_id in player_maps[lobby_id]:
+            print(f"[RECONNECT] User {user_id} rejoined lobby {lobby_id}")
+            # send "start_game" again to re-sync
+            await websocket.send_json({
+                "event": "start_game",
+                "user_id": user_id
+            })
+            # load last known game state from Redis
+            saved = await redis_client.get(f"game:{lobby_id}:state")
+            if saved:
+                state = json.loads(saved)
+                await websocket.send_json({"event": "reconnect_state", **state})
 
     game = game_instances[lobby_id]
 
@@ -121,21 +145,26 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str):
             game.print_board()
 
             # 11) Export, broadcast, and save state
-            state = game.export_state()
-            await redis_client.set(f"game:{lobby_id}:state", json.dumps(state))
-            print(f"[REDIS] Updated state for lobby {lobby_id}")
+            st = game.export_state()
+            # remap players → user_ids
+            pi = st.pop("players")
+            mp = {}
+            for internal, info in pi.items():
+                mp[str(reverse_player_maps[lobby_id][int(internal)])] = info
+            st["players"] = mp
 
+            # save and broadcast
+            await redis_client.set(f"game:{lobby_id}:state", json.dumps(st))
             for uid in lobby_connections[lobby_id]:
                 ws = connections.get(uid)
                 if ws:
-                    await ws.send_json(state)
+                    await ws.send_json(st)
 
             # 12) Check for game over
             winner_internal = game.get_winner()
             if winner_internal != -1:
                 result = "draw" if winner_internal is None else "win"
 
-                winner_internal = game.get_winner()
                 winner_user_id = reverse_player_maps[lobby_id][winner_internal]
                 loser_user_id = next(
                     uid for internal, uid in reverse_player_maps[lobby_id].items()
