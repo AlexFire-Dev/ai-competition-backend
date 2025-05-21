@@ -2,26 +2,6 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 
 
-# class UserBase(BaseModel):
-#     email: str
-#     username: str
-#
-#
-# class UserCreate(UserBase):
-#     password: str
-#     theme: str = "light"
-#     avatar: str = None
-#
-#
-# class User(UserBase):
-#     id: int
-#     theme: str
-#     avatar: str
-#
-#     class Config:
-#         from_attributes = True
-
-
 class UserBase(BaseModel):
     email: EmailStr
     username: str
@@ -66,4 +46,16 @@ class LobbyOut(BaseModel):
 
     class Config:
         from_attributes = True  # <- replaces orm_mode in Pydantic v2
+
+
+class MatchResultOut(BaseModel):
+    id: int
+    lobby_id: int
+    winner_id: Optional[int]
+    loser_id: Optional[int]
+    result: str  # "win" or "draw"
+    ticks: int
+
+    class Config:
+        orm_mode = True
 

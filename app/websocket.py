@@ -3,13 +3,13 @@ import json
 import asyncio
 from collections import defaultdict
 
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket, WebSocketDisconnect, Depends
 from redis.asyncio import Redis
 from sqlalchemy.orm import Session
 
 from bomberman.GameTools import Game, Action
 from app.database import SessionLocal
-from app import models
+from app import models, database
 from app.crud import store_match_result
 
 # Redis client (adjust host/port via environment or here)
@@ -29,7 +29,7 @@ player_maps = {}                           # lobby_id -> { user_id: internal_id 
 reverse_player_maps = {}                   # lobby_id -> { internal_id: user_id }
 
 
-async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str):
+async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Session):
     # 1) Accept the WebSocket connection
     await websocket.accept()
     print(f"[CONNECTED] User {user_id} connected to lobby {lobby_id}")
@@ -40,7 +40,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str):
     print(f"[LOBBY STATE] Lobby {lobby_id}: {lobby_connections[lobby_id]}")
 
     # 3) Determine how many players should join (from DB)
-    db: Session = SessionLocal()
+    # db: Session = SessionLocal()
     expected_players = (
         db.query(models.LobbyPlayer)
           .filter(models.LobbyPlayer.lobby_id == int(lobby_id))

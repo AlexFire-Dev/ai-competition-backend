@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from . import models, schemas, auth
 from passlib.context import CryptContext
@@ -130,3 +131,27 @@ def store_match_result(
     update_elo(db, winner_id, loser_id, True if (result == "draw") else False)
 
     return match
+
+
+def get_matches_by_user(
+    db: Session,
+    user_id: int,
+    skip: int = 0,
+    limit: int = 10
+):
+    """
+    Возвращает все матчи, в которых участвовал пользователь.
+    """
+    return (
+        db.query(models.MatchResult)
+          .filter(
+              or_(
+                  models.MatchResult.winner_id  == user_id,
+                  models.MatchResult.loser_id   == user_id
+              )
+          )
+          .order_by(models.MatchResult.id.desc())
+          .offset(skip)
+          .limit(limit)
+          .all()
+    )

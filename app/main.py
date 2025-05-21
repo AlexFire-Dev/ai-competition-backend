@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -59,6 +61,24 @@ def get_me(current_user: models.User = Depends(auth.get_current_user)):
     """Endpoint to get details of the currently authenticated user."""
 
     return current_user
+
+
+@app.get(
+    "/users/me/matches",
+    response_model=List[schemas.MatchResultOut],
+    summary="История ваших матчей"
+)
+def read_my_match_history(
+    skip: int = 0,
+    limit: int = 10,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    - skip: сколько записей пропустить (для пагинации)
+    - limit: максимальное число матчей в ответе
+    """
+    return crud.get_matches_by_user(db, current_user.id, skip=skip, limit=limit)
 
 
 @app.put("/update_profile", response_model=schemas.UserOut)
@@ -143,4 +163,4 @@ async def websocket_endpoint(websocket: WebSocket, lobby_id: str, db: Session = 
         await websocket.close(code=1008)
         return
 
-    await ws_handler.handle_ws(websocket, user.id, lobby_id)
+    await ws_handler.handle_ws(websocket, user.id, lobby_id, db)
