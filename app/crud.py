@@ -118,17 +118,32 @@ def store_match_result(
     """
     Сохраняет результат матча в БД, включая победителя и проигравшего.
     """
+    winner = db.query(models.User).filter(models.User.id == winner_id).one()
+    loser  = db.query(models.User).filter(models.User.id == loser_id).one()
+
+    pre_win = winner.rating
+    pre_los = loser.rating
+
+    update_elo(db, winner_id, loser_id, True if (result == "draw") else False)
+
+    db.refresh(winner)
+    db.refresh(loser)
+
+    elo_win_change = winner.rating - pre_win
+    elo_los_change = loser.rating - pre_los
+
     match = models.MatchResult(
         lobby_id  = lobby_id,
         winner_id = winner_id,
         loser_id  = loser_id,
-        result    = result,
-        ticks     = ticks
+        result    = "win" if elo_win_change > 0 else "draw",
+        ticks     = ticks,
+        winner_elo_change = elo_win_change,
+        loser_elo_change  = elo_los_change,
     )
     db.add(match)
     db.commit()
-
-    update_elo(db, winner_id, loser_id, True if (result == "draw") else False)
+    db.refresh(match)
 
     return match
 

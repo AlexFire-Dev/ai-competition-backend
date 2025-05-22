@@ -36,6 +36,9 @@ class MatchResult(Base):
     result = Column(String)  # win, draw
     ticks = Column(Integer)
 
+    winner_elo_change = Column(Integer, nullable=False, default=0)
+    loser_elo_change  = Column(Integer, nullable=False, default=0)
+
     lobby = relationship("Lobby")
     winner = relationship("User",  foreign_keys=[winner_id])
     loser = relationship("User", foreign_keys=[loser_id])

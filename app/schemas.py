@@ -56,6 +56,9 @@ class MatchResultOut(BaseModel):
     result: str  # "win" or "draw"
     ticks: int
 
+    winner_elo_change: int
+    loser_elo_change : int
+
     class Config:
         orm_mode = True
 
