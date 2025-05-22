@@ -4,7 +4,7 @@ import uuid
 from typing import List
 
 import aiofiles
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm
@@ -192,19 +192,14 @@ async def create_upload_file(file: UploadFile):
     return result
 
 
-@app.get("/loadfile/{file_path}")
+@app.get("/loadfile/{file_path}", response_class=FileResponse)
 async def load_file(file_path: str):
-    try:
-        full_path = os.path.join(MEDIA_DIR, file_path)
-        print(full_path)
+    full_path = os.path.join(MEDIA_DIR, file_path)
+    if not os.path.isfile(full_path):
+        raise HTTPException(404, "No such file")
 
-        if os.path.isfile(full_path):
-            async with aiofiles.open(full_path, mode='rb') as file:
-                content = await file.read()
-                return StreamingResponse(io.BytesIO(content), media_type='application/octet-stream')
-        else:
-            print("FAIL")
-            raise HTTPException(status_code=404, detail="No such file")
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+    return FileResponse(
+        path=full_path,
+        media_type="application/octet-stream",        # generic fallback
+        filename=os.path.basename(full_path),         # suggests a download filename
+    )
