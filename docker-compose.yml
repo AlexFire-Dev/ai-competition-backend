@@ -27,6 +27,8 @@ services:
   web:
     build: .
     command: ["./start.sh"]
+    volumes:
+      - ./media/:/media/
     ports:
       - "8000:8000"
     networks:

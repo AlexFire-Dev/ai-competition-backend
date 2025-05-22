@@ -1,6 +1,12 @@
+import io
+import os
+import uuid
 from typing import List
 
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+import aiofiles
+from fastapi.responses import StreamingResponse
+
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from uuid import uuid4
@@ -22,6 +28,9 @@ app.add_middleware(
     allow_methods=["*"],  # Разрешает все методы (GET, POST и т.д.)
     allow_headers=["*"],  # Разрешает все заголовки
 )
+
+
+MEDIA_DIR = "media"
 
 
 @app.post("/register", response_model=schemas.UserOut)
@@ -164,3 +173,38 @@ async def websocket_endpoint(websocket: WebSocket, lobby_id: str, db: Session = 
         return
 
     await ws_handler.handle_ws(websocket, user.id, lobby_id, db)
+
+
+@app.post("/uploadfile")
+async def create_upload_file(file: UploadFile):
+    file_name = str(uuid.uuid4())
+    extension = file.filename.split('.')[1]
+
+    async with aiofiles.open(f"{MEDIA_DIR}/{file_name}.{extension}", 'wb') as out_file:
+        content = await file.read()  # async read
+        await out_file.write(content)  # async write
+
+    result = {
+        "status": "ok",
+        "original_file": f"/loadfile/{file_name}.{extension}"
+    }
+
+    return result
+
+
+@app.get("/loadfile/{file_path}")
+async def load_file(file_path: str):
+    try:
+        full_path = os.path.join(MEDIA_DIR, file_path)
+        print(full_path)
+
+        if os.path.isfile(full_path):
+            async with aiofiles.open(full_path, mode='rb') as file:
+                content = await file.read()
+                return StreamingResponse(io.BytesIO(content), media_type='application/octet-stream')
+        else:
+            print("FAIL")
+            raise HTTPException(status_code=404, detail="No such file")
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
