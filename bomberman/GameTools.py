@@ -62,12 +62,28 @@ class Game:
                 elif random.random() < 0.2:
                     self.grid[y][x] = Tile.DESTRUCTIBLE
 
+    def _ensure_spawn_exit(self, x, y):
+        candidates = []
+        if x == 1:
+            candidates.append((x+1, y))
+        else:
+            candidates.append((x-1, y))
+
+        if y == 1:
+            candidates.append((x, y+1))
+        else:
+            candidates.append((x, y-1))
+
+        for nx, ny in candidates:
+            self.grid[ny][nx] = Tile.EMPTY
+
     def _spawn_players(self, num_players):
         positions = [(1,1), (self.width-2,1), (1,self.height-2), (self.width-2,self.height-2)]
         for i in range(num_players):
             x, y = positions[i]
             self.players[i] = Player(i, x, y)
             self.grid[y][x] = Tile.EMPTY  # ensure spawn area is clear
+            self._ensure_spawn_exit(x, y)
 
     def set_player_action(self, player_id, action):
         if player_id in self.players and self.players[player_id].alive:
