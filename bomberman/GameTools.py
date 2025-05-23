@@ -180,10 +180,6 @@ class Game:
         }
 
     def import_state(self, grid: list[list[str]]):
-        self.tick_count = 0
-        self.height     = len(grid)
-        self.width      = len(grid[0]) if self.height else 0
-
         self.grid = [
             [Tile[cell_name] for cell_name in row]
             for row in grid
