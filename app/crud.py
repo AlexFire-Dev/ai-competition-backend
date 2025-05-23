@@ -195,3 +195,11 @@ def store_replay(
 
 def get_replay(db: Session, replay_id: int) -> models.Replay | None:
     return db.query(models.Replay).filter(models.Replay.id == replay_id).first()
+
+
+def get_replay_by_match_id(db: Session, match_id: int) -> models.Replay | None:
+    return (
+        db.query(models.Replay)
+          .filter(models.Replay.match_id == match_id)
+          .first()
+    )

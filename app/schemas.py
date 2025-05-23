@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
-from typing import List, Optional, Any
+from pydantic import BaseModel, EmailStr, Field
+from typing import List, Optional, Any, Dict
 from datetime import datetime
 
 
@@ -65,18 +65,23 @@ class MatchResultOut(BaseModel):
 
 
 class ReplayAction(BaseModel):
-    tick      : int
-    player_id : int
-    action    : str
-    params    : dict | None
+    tick          : int
+    player_id     : int = Field(alias="player_int_id")
+    action        : str
+    params        : Optional[Dict[str, Any]] = None
+
+    class Config:
+        orm_mode = True
+
+        allow_population_by_field_name = True
 
 
 class ReplayOut(BaseModel):
     id           : int
     match_id     : int
     created_at   : datetime
-    game_params  : dict[str, Any]
-    initial_map  : dict[str, Any]
+    game_params  : Dict[str, Any]
+    initial_map  : Dict[str, Any]
     actions      : List[ReplayAction]
 
     class Config:
