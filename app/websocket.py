@@ -21,8 +21,8 @@ redis_client = Redis(
 )
 
 # In-memory mappings
-connections = {}                           # user_id -> WebSocket
-lobby_connections = defaultdict(set)      # lobby_id -> set of user_ids
+connections = defaultdict(dict)            # lobby_id -> { user_id: WebSocket }
+lobby_connections = defaultdict(set)       # lobby_id -> set of user_ids
 game_instances = {}                        # lobby_id -> Game
 lobby_actions = defaultdict(dict)          # lobby_id -> { user_id: Action }
 player_maps = {}                           # lobby_id -> { user_id: internal_id }
@@ -37,7 +37,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
     print(f"[CONNECTED] User {user_id} connected to lobby {lobby_id}")
 
     # 2) Register the connection
-    connections[user_id] = websocket
+    connections[lobby_id][user_id] = websocket
     lobby_connections[lobby_id].add(user_id)
     print(f"[LOBBY STATE] Lobby {lobby_id}: {lobby_connections[lobby_id]}")
 
@@ -82,7 +82,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
 
             # 5a) Notify clients that the game is starting
             for uid in uids:
-                ws = connections.get(uid)
+                ws = connections[lobby_id].get(uid)
                 if ws:
                     await ws.send_json({
                         "event": "start_game",
@@ -100,7 +100,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
             init["players"] = remapped
 
             for uid in uids:
-                ws = connections.get(uid)
+                ws = connections[lobby_id].get(uid)
                 if ws:
                     await ws.send_json({"event": "init_state", **init})
             print(f"[INIT STATE] {init['tick']}")
@@ -176,7 +176,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
             # save and broadcast
             await redis_client.set(f"game:{lobby_id}:state", json.dumps(st))
             for uid in lobby_connections[lobby_id]:
-                ws = connections.get(uid)
+                ws = connections[lobby_id].get(uid)
                 if ws:
                     await ws.send_json(st)
 
@@ -222,7 +222,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
 
                 # Notify clients and close connections
                 for uid in list(lobby_connections[lobby_id]):
-                    ws = connections.pop(uid, None)
+                    ws = connections[lobby_id].pop(uid, None)
                     if ws:
                         await ws.send_json({"event": "game_over", "winner": winner_user_id if result == "win" else "draw"})
                         await ws.close()
@@ -230,6 +230,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
 
                 # Cleanup
                 del game_instances[lobby_id]
+                del connections[lobby_id]
                 del lobby_connections[lobby_id]
                 del player_maps[lobby_id]
                 del reverse_player_maps[lobby_id]
