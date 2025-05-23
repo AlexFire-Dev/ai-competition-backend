@@ -73,21 +73,22 @@ def update_elo(db: Session, winner_id: int, loser_id: int, is_draw: bool = False
     E_w = 1 / (1 + pow(10, (R_l - R_w) / 400))
     E_l = 1 / (1 + pow(10, (R_w - R_l) / 400))
 
-    if is_draw:
-        S_w = S_l = 0.5
-    else:
-        S_w, S_l = 1.0, 0.0
+    if not is_draw:
+        if is_draw:
+            S_w = S_l = 0.5
+        else:
+            S_w, S_l = 1.0, 0.0
 
-    def choose_K(games):
-        if games < 30: return 40
-        if games < 300: return 20
-        return 10
+        def choose_K(games):
+            if games < 30: return 40
+            if games < 300: return 20
+            return 10
 
-    K_w = choose_K(winner.games_played)
-    K_l = choose_K(loser.games_played)
+        K_w = choose_K(winner.games_played)
+        K_l = choose_K(loser.games_played)
 
-    winner.rating = round(R_w + K_w * (S_w - E_w))
-    loser.rating  = round(R_l + K_l * (S_l - E_l))
+        winner.rating = round(R_w + K_w * (S_w - E_w))
+        loser.rating  = round(R_l + K_l * (S_l - E_l))
 
     winner.games_played += 1
     loser.games_played  += 1
@@ -136,7 +137,7 @@ def store_match_result(
         lobby_id  = lobby_id,
         winner_id = winner_id,
         loser_id  = loser_id,
-        result    = "win" if elo_win_change > 0 else "draw",
+        result    = result,
         ticks     = ticks,
         winner_elo_change = elo_win_change,
         loser_elo_change  = elo_los_change,

@@ -186,8 +186,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
                 if winner_internal is None:
                     result = "draw"
                     winner_user_id = next(uid for internal, uid in reverse_player_maps[lobby_id].items())
-                    loser_user_id = next(uid for internal, uid in reverse_player_maps[lobby_id].items()
-                                         if uid != winner_user_id)
+                    loser_user_id = next(uid for internal, uid in reverse_player_maps[lobby_id].items() if uid != winner_user_id)
                 else:
                     result = "win"
                     winner_user_id = reverse_player_maps[lobby_id][winner_internal]
@@ -225,7 +224,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
                 for uid in list(lobby_connections[lobby_id]):
                     ws = connections.pop(uid, None)
                     if ws:
-                        await ws.send_json({"event": "game_over", "winner": winner_user_id})
+                        await ws.send_json({"event": "game_over", "winner": winner_user_id if result == "win" else "draw"})
                         await ws.close()
                         print(f"[CLOSED] User {uid} disconnected after game over")
 
