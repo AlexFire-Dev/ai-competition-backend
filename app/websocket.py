@@ -183,13 +183,19 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
             # 12) Check for game over
             winner_internal = game.get_winner()
             if winner_internal != -1:
-                result = "draw" if winner_internal is None else "win"
+                if winner_internal is None:
+                    result = "draw"
+                    winner_user_id = None
+                    loser_user_id = None
+                else:
+                    result = "win"
+                    winner_user_id = reverse_player_maps[lobby_id][winner_internal]
+                    loser_user_id = next(
+                        uid for internal, uid in reverse_player_maps[lobby_id].items()
+                        if internal != winner_internal
+                    )
 
-                winner_user_id = reverse_player_maps[lobby_id][winner_internal]
-                loser_user_id = next(
-                    uid for internal, uid in reverse_player_maps[lobby_id].items()
-                    if internal != winner_internal
-                )
+                print(f"[GAME OVER] Lobby {lobby_id} result={result}, winner={winner_user_id}")
 
                 print(f"[GAME OVER] Lobby {lobby_id} result={result}, winner={winner_user_id}")
                 match = store_match_result(
