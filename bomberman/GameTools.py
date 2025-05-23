@@ -179,19 +179,37 @@ class Game:
             ]
         }
 
-    def import_state(self, grid: list[list[str]]):
+    def import_state(self, state: dict):
+        self.tick_count = state["tick"]
+        self.width      = state["width"]
+        self.height     = state["height"]
+
         self.grid = [
             [Tile[cell_name] for cell_name in row]
-            for row in grid
+            for row in state["grid"]
         ]
 
         self.players = {}
-        self._spawn_players(self.num_players)
+        for pid_str, pdata in state["players"].items():
+            pid = int(pid_str)
+            p = Player(pid, pdata["x"], pdata["y"])
+            p.alive = pdata["alive"]
+            self.players[pid] = p
 
         self.bombs = []
-        self.fire  = []
+        for bd in state["bombs"]:
+            bomb = Bomb(bd["owner_id"], bd["x"], bd["y"], bd["timer"], bd["radius"])
+            self.bombs.append(bomb)
+            self.grid[bomb.y][bomb.x] = Tile.BOMB
+
+        self.fire = []
+        for fd in state["fire"]:
+            x, y, ttl = fd["x"], fd["y"], fd["ttl"]
+            self.fire.append((x, y, ttl))
+            self.grid[y][x] = Tile.FIRE
 
         self.actions = defaultdict(lambda: Action.STAY)
+
 
     def print_board(self, id_map: dict[int, int] | None = None):
         board = [[self._tile_char(x, y) for x in range(self.width)] for y in range(self.height)]
