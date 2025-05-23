@@ -28,6 +28,7 @@ lobby_actions = defaultdict(dict)          # lobby_id -> { user_id: Action }
 player_maps = {}                           # lobby_id -> { user_id: internal_id }
 reverse_player_maps = {}                   # lobby_id -> { internal_id: user_id }
 replay_data = {}
+init_locks = {}
 
 
 async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Session):
@@ -54,72 +55,74 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
     while len(lobby_connections[lobby_id]) < expected_players:
         await asyncio.sleep(0.5)
 
-    # 5) Initialize the game and mappings once
-    if lobby_id not in game_instances:
-        uids = list(lobby_connections[lobby_id])
-        player_map = {uid: idx for idx, uid in enumerate(uids)}
-        reverse_map = {idx: uid for uid, idx in player_map.items()}
-        player_maps[lobby_id] = player_map
-        reverse_player_maps[lobby_id] = reverse_map
+    lock = init_locks.setdefault(lobby_id, asyncio.Lock())
+    async with lock:
+        # 5) Initialize the game and mappings once
+        if lobby_id not in game_instances:
+            uids = list(lobby_connections[lobby_id])
+            player_map = {uid: idx for idx, uid in enumerate(uids)}
+            reverse_map = {idx: uid for uid, idx in player_map.items()}
+            player_maps[lobby_id] = player_map
+            reverse_player_maps[lobby_id] = reverse_map
 
-        print(f"[INIT] Creating game {lobby_id} for players {player_map}")
-        game = Game(width=13, height=11, num_players=expected_players)
-        game.lobby_id = lobby_id
-        game_instances[lobby_id] = game
+            print(f"[INIT] Creating game {lobby_id} for players {player_map}")
+            game = Game(width=13, height=11, num_players=expected_players)
+            game.lobby_id = lobby_id
+            game_instances[lobby_id] = game
 
-        # Сохраняем параметры игры
-        replay_data[lobby_id] = {
-            "game_params": {
-                "width": 13,
-                "height": 11,
-            },
-            "initial_map": game.export_state(),
-            "actions": []
-        }
+            # Сохраняем параметры игры
+            replay_data[lobby_id] = {
+                "game_params": {
+                    "width": 13,
+                    "height": 11,
+                },
+                "initial_map": game.export_state(),
+                "actions": []
+            }
 
-        # 5a) Notify clients that the game is starting
-        for uid in uids:
-            ws = connections.get(uid)
-            if ws:
-                await ws.send_json({"event": "start_game"})
-                await ws.send_json({
+            # 5a) Notify clients that the game is starting
+            for uid in uids:
+                ws = connections.get(uid)
+                if ws:
+                    await ws.send_json({
+                        "event": "start_game",
+                        "user_id": uid
+                    })
+            print(f"[GAME] Lobby {lobby_id} → start_game sent to {len(uids)} clients")
+
+            # 5b) Broadcast the initial game state
+            init = game.export_state()
+            players_int = init.pop("players")
+            remapped = {}
+            for internal, info in players_int.items():
+                uid = reverse_player_maps[lobby_id][int(internal)]
+                remapped[str(uid)] = info
+            init["players"] = remapped
+
+            for uid in uids:
+                ws = connections.get(uid)
+                if ws:
+                    await ws.send_json({"event": "init_state", **init})
+            print(f"[INIT STATE] {init['tick']}")
+
+            # 5c) Store initial state in Redis
+            await redis_client.set(f"game:{lobby_id}:state", json.dumps(init))
+            print(f"[REDIS] Initial state stored for lobby {lobby_id}")
+        else:
+            # 5x) Reconnection handling
+            game = game_instances[lobby_id]
+            if user_id in player_maps[lobby_id] and getattr(game, "tick_count", 0) > 0:
+                print(f"[RECONNECT] User {user_id} rejoined lobby {lobby_id}")
+                # send "start_game" again to re-sync
+                await websocket.send_json({
                     "event": "start_game",
-                    "user_id": uid
+                    "user_id": user_id
                 })
-        print(f"[GAME] Lobby {lobby_id} → start_game sent to {len(uids)} clients")
-
-        # 5b) Broadcast the initial game state
-        init = game.export_state()
-        players_int = init.pop("players")
-        remapped = {}
-        for internal, info in players_int.items():
-            uid = reverse_player_maps[lobby_id][int(internal)]
-            remapped[str(uid)] = info
-        init["players"] = remapped
-
-        for uid in uids:
-            ws = connections.get(uid)
-            if ws:
-                await ws.send_json({"event": "init_state", **init})
-        print(f"[INIT STATE] {init['tick']}")
-
-        # 5c) Store initial state in Redis
-        await redis_client.set(f"game:{lobby_id}:state", json.dumps(init))
-        print(f"[REDIS] Initial state stored for lobby {lobby_id}")
-    else:
-        # 5x) Reconnection handling
-        if user_id in player_maps[lobby_id]:
-            print(f"[RECONNECT] User {user_id} rejoined lobby {lobby_id}")
-            # send "start_game" again to re-sync
-            await websocket.send_json({
-                "event": "start_game",
-                "user_id": user_id
-            })
-            # load last known game state from Redis
-            saved = await redis_client.get(f"game:{lobby_id}:state")
-            if saved:
-                state = json.loads(saved)
-                await websocket.send_json({"event": "reconnect_state", **state})
+                # load last known game state from Redis
+                saved = await redis_client.get(f"game:{lobby_id}:state")
+                if saved:
+                    state = json.loads(saved)
+                    await websocket.send_json({"event": "reconnect_state", **state})
 
     game = game_instances[lobby_id]
 
@@ -225,6 +228,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
                 del player_maps[lobby_id]
                 del reverse_player_maps[lobby_id]
                 del replay_data[lobby_id]
+                init_locks.pop(lobby_id, None)
                 break
 
     except WebSocketDisconnect:
@@ -241,6 +245,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
             player_maps.pop(lobby_id, None)
             reverse_player_maps.pop(lobby_id, None)
             replay_data.pop(lobby_id, None)
+            init_locks.pop(lobby_id, None)
 
     finally:
         db.close()
