@@ -185,8 +185,9 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
             if winner_internal != -1:
                 if winner_internal is None:
                     result = "draw"
-                    winner_user_id = None
-                    loser_user_id = None
+                    winner_user_id = next(uid for internal, uid in reverse_player_maps[lobby_id].items())
+                    loser_user_id = next(uid for internal, uid in reverse_player_maps[lobby_id].items()
+                                         if uid != winner_user_id)
                 else:
                     result = "win"
                     winner_user_id = reverse_player_maps[lobby_id][winner_internal]
