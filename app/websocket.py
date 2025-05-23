@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from bomberman.GameTools import Game, Action
 from app.database import SessionLocal
 from app import models, database
-from app.crud import store_match_result
+from app.crud import store_match_result, store_replay
 
 # Redis client (adjust host/port via environment or here)
 redis_client = Redis(
@@ -27,6 +27,7 @@ game_instances = {}                        # lobby_id -> Game
 lobby_actions = defaultdict(dict)          # lobby_id -> { user_id: Action }
 player_maps = {}                           # lobby_id -> { user_id: internal_id }
 reverse_player_maps = {}                   # lobby_id -> { internal_id: user_id }
+replay_data = {}
 
 
 async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Session):
@@ -65,6 +66,16 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
         game = Game(width=13, height=11, num_players=expected_players)
         game.lobby_id = lobby_id
         game_instances[lobby_id] = game
+
+        # Сохраняем параметры игры
+        replay_data[lobby_id] = {
+            "game_params": {
+                "width": 13,
+                "height": 11,
+            },
+            "initial_map": game.export_state(),
+            "actions": []
+        }
 
         # 5a) Notify clients that the game is starting
         for uid in uids:
@@ -125,6 +136,12 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
 
             # 7) Store the action
             lobby_actions[lobby_id][user_id] = Action[action_type]
+            replay_data[lobby_id]["actions"].append({
+                "tick": game.tick_count,
+                "player_int_id": player_maps[lobby_id][user_id],
+                "action": action_type,
+                **{k: v for k, v in data.items() if k != "action"}
+            })
             print(f"[ACTION] Collected {len(lobby_actions[lobby_id])}/{expected_players} actions")
 
             # 8) Wait until all players have sent their action
@@ -172,13 +189,22 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
                 )
 
                 print(f"[GAME OVER] Lobby {lobby_id} result={result}, winner={winner_user_id}")
-                store_match_result(
+                match = store_match_result(
                     db,
                     lobby_id=int(lobby_id),
                     winner_id=winner_user_id,
                     loser_id=loser_user_id,
                     result=result,  # "win" | "draw"
                     ticks=game.tick_count
+                )
+
+                rd = replay_data[lobby_id]
+                store_replay(
+                    db,
+                    match.id,
+                    rd["game_params"],
+                    rd["initial_map"],
+                    rd["actions"]
                 )
 
                 # Remove state from Redis
@@ -198,6 +224,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
                 del lobby_connections[lobby_id]
                 del player_maps[lobby_id]
                 del reverse_player_maps[lobby_id]
+                del replay_data[lobby_id]
                 break
 
     except WebSocketDisconnect:
@@ -213,6 +240,7 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
             lobby_actions.pop(lobby_id, None)
             player_maps.pop(lobby_id, None)
             reverse_player_maps.pop(lobby_id, None)
+            replay_data.pop(lobby_id, None)
 
     finally:
         db.close()

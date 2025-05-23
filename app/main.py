@@ -1,7 +1,7 @@
 import io
 import os
 import uuid
-from typing import List
+from typing import List, Dict, Any
 
 import aiofiles
 from fastapi.responses import StreamingResponse, FileResponse
@@ -11,7 +11,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from uuid import uuid4
 
-from . import crud, models, schemas, auth, database
+from . import crud, models, schemas, auth, database, simulation
 import app.websocket as ws_handler
 from .database import get_db
 
@@ -203,3 +203,23 @@ async def load_file(file_path: str):
         media_type="application/octet-stream",        # generic fallback
         filename=os.path.basename(full_path),         # suggests a download filename
     )
+
+
+@app.get(
+    "/replays/{replay_id}",
+    summary="Воссоздать и вернуть кадры игры по реплею"
+)
+def replay_frames(
+    replay_id: int,
+    db: Session = Depends(get_db)
+) -> List[Dict[str, Any]]:
+    replay = crud.get_replay(db, replay_id)
+    if not replay:
+        raise HTTPException(status_code=404, detail="Replay not found")
+
+    frames = simulation.simulate_replay(
+        replay.game_params,
+        replay.initial_map,
+        replay.actions
+    )
+    return frames

@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 from .database import Base
 
@@ -42,6 +44,21 @@ class MatchResult(Base):
     lobby = relationship("Lobby")
     winner = relationship("User",  foreign_keys=[winner_id])
     loser = relationship("User", foreign_keys=[loser_id])
+
+    replay = relationship("Replay", uselist=False, back_populates="match")
+
+
+class Replay(Base):
+    __tablename__ = "replays"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    match_id      = Column(Integer, ForeignKey("match_results.id"), unique=True, nullable=False)
+    created_at    = Column(DateTime, default=datetime.utcnow, nullable=False)
+    game_params   = Column(JSONB, nullable=False)
+    initial_map   = Column(JSONB, nullable=False)
+    actions       = Column(JSONB, nullable=False)
+
+    match         = relationship("MatchResult", back_populates="replay")
 
 
 class User(Base):
