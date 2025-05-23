@@ -16,7 +16,7 @@ def simulate_replay(
     num_players = len(initial_map["players"])
 
     game = Game(width=width, height=height, num_players=num_players)
-    game._state = initial_map
+    game.import_state(initial_map)
 
     frames = [initial_map]
 

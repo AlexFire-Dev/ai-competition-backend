@@ -39,6 +39,8 @@ class Bomb:
 
 class Game:
     def __init__(self, width, height, num_players):
+        self.num_players = num_players
+
         self.width = width
         self.height = height
         self.grid = [[Tile.EMPTY for _ in range(width)] for _ in range(height)]
@@ -176,6 +178,24 @@ class Game:
                 } for x, y, ttl in self.fire
             ]
         }
+
+    def import_state(self, grid: list[list[str]]):
+        self.tick_count = 0
+        self.height     = len(grid)
+        self.width      = len(grid[0]) if self.height else 0
+
+        self.grid = [
+            [Tile[cell_name] for cell_name in row]
+            for row in grid
+        ]
+
+        self.players = {}
+        self._spawn_players(self.num_players)
+
+        self.bombs = []
+        self.fire  = []
+
+        self.actions = defaultdict(lambda: Action.STAY)
 
     def print_board(self, id_map: dict[int, int] | None = None):
         board = [[self._tile_char(x, y) for x in range(self.width)] for y in range(self.height)]
