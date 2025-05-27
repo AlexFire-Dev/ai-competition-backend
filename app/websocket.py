@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from bomberman.GameTools import Game, Action
 from app.database import SessionLocal
-from app import models, database
+from app import models, database, crud
 from app.crud import store_match_result, store_replay
 
 # Redis client (adjust host/port via environment or here)
@@ -66,6 +66,8 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
             reverse_player_maps[lobby_id] = reverse_map
 
             print(f"[INIT] Creating game {lobby_id} for players {player_map}")
+            crud.update_lobby_status(db, int(lobby_id), models.LobbyStatus.in_progress)
+
             game = Game(width=13, height=11, num_players=expected_players)
             game.lobby_id = lobby_id
             game_instances[lobby_id] = game
@@ -196,8 +198,8 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
                     )
 
                 print(f"[GAME OVER] Lobby {lobby_id} result={result}, winner={winner_user_id}")
+                crud.update_lobby_status(db, int(lobby_id), models.LobbyStatus.finished)
 
-                print(f"[GAME OVER] Lobby {lobby_id} result={result}, winner={winner_user_id}")
                 match = store_match_result(
                     db,
                     lobby_id=int(lobby_id),

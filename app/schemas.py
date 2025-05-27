@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional, Any, Dict
 from datetime import datetime
+from enum import Enum
 
 
 class UserBase(BaseModel):
@@ -33,20 +34,32 @@ class UserOut(UserBase):
         orm_mode = True
 
 
+# class LobbyCreate(BaseModel):
+#     game_id: str
+#     host_id: int
+
+
+class LobbyStatus(str, Enum):
+    waiting = "waiting"
+    in_progress = "in_progress"
+    finished = "finished"
+
+
 class LobbyCreate(BaseModel):
-    game_id: str
-    host_id: int
+    is_private: bool = True
 
 
 class LobbyOut(BaseModel):
     id: int
     game_id: str
     host_id: int
-    status: str
-    players: List[int]  # stays the same
+    status: LobbyStatus
+    players: List[int]
+    created_at: datetime
+    is_private: bool
 
     class Config:
-        from_attributes = True  # <- replaces orm_mode in Pydantic v2
+        from_attributes = True
 
 
 class MatchResultOut(BaseModel):

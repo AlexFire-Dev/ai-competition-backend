@@ -1,9 +1,16 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Enum, Boolean, Float
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
+import enum
 
 from .database import Base
+
+
+class LobbyStatus(str, enum.Enum):
+    waiting = "waiting"
+    in_progress = "in_progress"
+    finished = "finished"
 
 
 class Lobby(Base):
@@ -12,9 +19,14 @@ class Lobby(Base):
     id = Column(Integer, primary_key=True, index=True)
     game_id = Column(String, unique=True, index=True)
     host_id = Column(Integer, ForeignKey("users.id"))
-    status = Column(String, default="waiting")  # waiting, started, finished
+
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     players = relationship("LobbyPlayer", back_populates="lobby")
+
+    is_private = Column(Boolean, default=False, nullable=False, index=True)
+    status = Column(Enum(LobbyStatus), default=LobbyStatus.waiting, nullable=False, index=True)
+    avg_rating = Column(Float, nullable=False)
 
 
 class LobbyPlayer(Base):
