@@ -203,7 +203,9 @@ def join_lobby(game_id: str, db: Session = Depends(database.get_db), current_use
         game_id=lobby.game_id,
         host_id=lobby.host_id,
         status=lobby.status,
-        players=[p.user_id for p in lobby.players]
+        players=[p.user_id for p in lobby.players],
+        created_at=lobby.created_at,
+        is_private=lobby.is_private
     )
 
 
