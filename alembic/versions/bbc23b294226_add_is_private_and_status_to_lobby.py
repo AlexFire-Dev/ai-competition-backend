@@ -57,7 +57,7 @@ def upgrade() -> None:
         existing_type=sa.VARCHAR(),
         type_=status_enum,
         nullable=False,
-        server_default=sa.text("'finished'"),
+        server_default=sa.text("'waiting'"),
         postgresql_using="status::text::lobbystatus"
     )
 
