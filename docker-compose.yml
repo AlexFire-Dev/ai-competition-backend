@@ -40,6 +40,34 @@ services:
       - .env
     restart: unless-stopped
 
+  celery-worker:
+    build: .
+    command: [ "celery", "-A", "app.celery_app.celery_app", "worker", "--loglevel=INFO" ]
+    volumes:
+      - ./media/:/media/
+    networks:
+      - my_network
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  celery-beat:
+    build: .
+    command: [ "celery", "-A", "app.celery_app.celery_app", "beat", "--loglevel=INFO" ]
+    volumes:
+      - ./media/:/media/
+    networks:
+      - my_network
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
