@@ -131,8 +131,14 @@ async def handle_ws(websocket: WebSocket, user_id: int, lobby_id: str, db: Sessi
     try:
         while True:
             # 6) Receive action from a client
-            data = await websocket.receive_json()
-            action_type = data.get("action")
+            try:
+                data = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
+                action_type = data.get("action", "STAY")
+            except asyncio.TimeoutError:
+                action_type = "STAY"
+
+            # data = await websocket.receive_json()
+            # action_type = data.get("action")
             print(f"[RECEIVED] From {user_id}: {action_type}")
 
             if action_type not in Action.__members__:
