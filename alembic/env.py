@@ -19,7 +19,7 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 import app.models as models  # Импортируем модели, которые мы будем мигрировать
-from app.database import engine  # Подключение к движку базы данных
+from app.core.database import engine  # Подключение к движку базы данных
 target_metadata = models.Base.metadata
 
 # target_metadata = None

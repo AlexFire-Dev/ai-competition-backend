@@ -8,8 +8,9 @@ from redis.asyncio import Redis
 from sqlalchemy.orm import Session
 
 from bomberman.GameTools import Game, Action
-from app.database import SessionLocal
-from app import models, database, crud
+from app.core.database import SessionLocal
+from app import models, crud
+from app.core import database, auth
 from app.crud import store_match_result, store_replay
 
 # Redis client (adjust host/port via environment or here)

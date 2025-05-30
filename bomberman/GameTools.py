@@ -55,7 +55,7 @@ class Game:
     def _place_walls(self):
         for y in range(self.height):
             for x in range(self.width):
-                if x == 0 or y == 0 or x == self.width-1 or y == self.height-1:
+                if x == 0 or y == 0 or x == self.width - 1 or y == self.height - 1:
                     self.grid[y][x] = Tile.WALL
                 elif (x % 2 == 0 and y % 2 == 0):
                     self.grid[y][x] = Tile.WALL
@@ -65,20 +65,20 @@ class Game:
     def _ensure_spawn_exit(self, x, y):
         candidates = []
         if x == 1:
-            candidates.append((x+1, y))
+            candidates.append((x + 1, y))
         else:
-            candidates.append((x-1, y))
+            candidates.append((x - 1, y))
 
         if y == 1:
-            candidates.append((x, y+1))
+            candidates.append((x, y + 1))
         else:
-            candidates.append((x, y-1))
+            candidates.append((x, y - 1))
 
         for nx, ny in candidates:
             self.grid[ny][nx] = Tile.EMPTY
 
     def _spawn_players(self, num_players):
-        positions = [(1,1), (self.width-2,1), (1,self.height-2), (self.width-2,self.height-2)]
+        positions = [(1, 1), (self.width - 2, 1), (1, self.height - 2), (self.width - 2, self.height - 2)]
         for i in range(num_players):
             x, y = positions[i]
             self.players[i] = Player(i, x, y)
@@ -103,10 +103,14 @@ class Game:
                 continue
 
             dx, dy = 0, 0
-            if action == Action.UP: dy = -1
-            elif action == Action.DOWN: dy = 1
-            elif action == Action.LEFT: dx = -1
-            elif action == Action.RIGHT: dx = 1
+            if action == Action.UP:
+                dy = -1
+            elif action == Action.DOWN:
+                dy = 1
+            elif action == Action.LEFT:
+                dx = -1
+            elif action == Action.RIGHT:
+                dx = 1
             elif action == Action.BOMB:
                 if self.grid[player.y][player.x] != Tile.BOMB:
                     self.bombs.append(Bomb(pid, player.x, player.y))
@@ -134,9 +138,9 @@ class Game:
         self.grid[y][x] = Tile.FIRE
         self.fire.append((x, y, 2))
 
-        for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
-            for i in range(1, bomb.radius+1):
-                nx, ny = x + dx*i, y + dy*i
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            for i in range(1, bomb.radius + 1):
+                nx, ny = x + dx * i, y + dy * i
                 if not (0 <= nx < self.width and 0 <= ny < self.height):
                     break
                 tile = self.grid[ny][nx]
@@ -158,7 +162,7 @@ class Game:
         new_fire = []
         for x, y, ttl in self.fire:
             if ttl > 1:
-                new_fire.append((x, y, ttl-1))
+                new_fire.append((x, y, ttl - 1))
             else:
                 if self.grid[y][x] == Tile.FIRE:
                     self.grid[y][x] = Tile.EMPTY
@@ -197,8 +201,8 @@ class Game:
 
     def import_state(self, state: dict):
         self.tick_count = state["tick"]
-        self.width      = state["width"]
-        self.height     = state["height"]
+        self.width = state["width"]
+        self.height = state["height"]
 
         self.grid = [
             [Tile[cell_name] for cell_name in row]
@@ -225,7 +229,6 @@ class Game:
             self.grid[y][x] = Tile.FIRE
 
         self.actions = defaultdict(lambda: Action.STAY)
-
 
     def print_board(self, id_map: dict[int, int] | None = None):
         board = [[self._tile_char(x, y) for x in range(self.width)] for y in range(self.height)]

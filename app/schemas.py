@@ -34,11 +34,6 @@ class UserOut(UserBase):
         orm_mode = True
 
 
-# class LobbyCreate(BaseModel):
-#     game_id: str
-#     host_id: int
-
-
 class LobbyStatus(str, Enum):
     waiting = "waiting"
     in_progress = "in_progress"

@@ -5,12 +5,11 @@ from typing import Union
 from jose import JWTError, jwt
 import os
 from sqlalchemy.orm import Session
-from app.database import get_db
+from app.core.database import get_db
 
 from app import models, crud
 
 
-# Загружаем переменные из .env
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))

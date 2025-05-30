@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 from celery import shared_task
 from sqlalchemy.orm import Session
 
-from .database import SessionLocal
-from . import models
+from app.core.database import SessionLocal
+from app import models
 
 
 LOBBY_TIMEOUT_MINUTES = 5
