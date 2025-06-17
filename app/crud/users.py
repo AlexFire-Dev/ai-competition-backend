@@ -38,3 +38,13 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.commit()
     db.refresh(db_user)
     return db_user
+
+
+def get_top_users(db: Session, limit: int = 10):
+    """Return users with the highest rating."""
+    return (
+        db.query(models.User)
+          .order_by(models.User.rating.desc())
+          .limit(limit)
+          .all()
+    )

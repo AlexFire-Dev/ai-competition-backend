@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app import crud, schemas, models
 from app.core import database, auth
+from typing import List
 
 
 router = APIRouter()
@@ -42,3 +43,9 @@ def change_password(old_password: str, new_password: str, db: Session = Depends(
     db_user.hashed_password = auth.hash_password(new_password)
     db.commit()
     return {"message": "Password updated successfully"}
+
+
+@router.get("/users/top", response_model=List[schemas.UserOut])
+def get_top_rating(limit: int = 20, db: Session = Depends(database.get_db)):
+    """Return top users by rating."""
+    return crud.get_top_users(db, limit=limit)
